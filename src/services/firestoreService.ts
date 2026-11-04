@@ -488,6 +488,7 @@ export function exportNilaiToExcel(jawabanList: JawabanSiswa[], namaKelasFilter:
     'Nilai Essay (0-100)': item.nilaiEssay !== null ? item.nilaiEssay : 'Belum Dinilai',
     'Nilai Akhir': item.nilaiAkhir,
     'Status Evaluasi': item.status,
+    'Pelanggaran Pindah Tab': item.pelanggaranPindahTab ? `${item.pelanggaranPindahTab}x Peringatan` : '0x (Tertib)',
     'Keterangan KKM': item.nilaiAkhir >= 75 ? 'TUNTAS' : 'REMEDIAL',
     'Catatan Guru': item.catatanGuru || '-',
     'Tanggal Pengumpulan': new Date(item.submittedAt).toLocaleString('id-ID')

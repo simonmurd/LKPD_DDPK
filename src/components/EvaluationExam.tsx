@@ -1,7 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modul, UserSession, JawabanSiswa } from '../types';
 import { submitJawabanSiswa } from '../services/firestoreService';
-import { Clock, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Flag, Send, HelpCircle, FileText } from 'lucide-react';
+import { 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  ArrowLeft, 
+  ArrowRight, 
+  Flag, 
+  Send, 
+  HelpCircle, 
+  FileText, 
+  AlertTriangle, 
+  ShieldAlert, 
+  ShieldCheck 
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface Props {
@@ -9,6 +22,33 @@ interface Props {
   user: UserSession;
   onFinish: (result: JawabanSiswa) => void;
   onCancel: () => void;
+}
+
+// Suara peringatan synthesizer Web Audio API (tanpa file eksternal)
+function playWarningAlarm() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    // Bunyi alarm 2 nada (E5 -> A5)
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
+    
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // Abaikan jika browser membatasi autoplay audio
+  }
 }
 
 export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCancel }) => {
@@ -20,6 +60,56 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
   const [timeLeft, setTimeLeft] = useState<number>(modul.estimasiMenit * 60 || 3600); // in seconds
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Anti-Cheat: Pelanggaran Pindah Tab / Jendela
+  const MAX_ALLOWED_VIOLATIONS = 3;
+  const [violationCount, setViolationCount] = useState<number>(0);
+  const [showTabWarningModal, setShowTabWarningModal] = useState<boolean>(false);
+  const lastViolationTimeRef = useRef<number>(0);
+  const violationCountRef = useRef<number>(0);
+  violationCountRef.current = violationCount;
+
+  // Deteksi Berpindah Tab atau Membuka Jendela Lain
+  useEffect(() => {
+    if (isSubmitting) return;
+
+    const recordTabViolation = () => {
+      const now = Date.now();
+      // Debounce 1.5 detik agar event visibilitychange & blur tidak terhitung ganda
+      if (now - lastViolationTimeRef.current < 1500) return;
+      lastViolationTimeRef.current = now;
+
+      const nextViolation = violationCountRef.current + 1;
+      setViolationCount(nextViolation);
+      setShowTabWarningModal(true);
+      playWarningAlarm();
+
+      // Jika pelanggaran mencapai batas maksimal (3x), kumpulkan ujian paksa
+      if (nextViolation >= MAX_ALLOWED_VIOLATIONS) {
+        setTimeout(() => {
+          handleSubmitFinal(nextViolation);
+        }, 2500);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        recordTabViolation();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      recordTabViolation();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isSubmitting]);
 
   // Timer countdown
   useEffect(() => {
@@ -81,9 +171,11 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
     }));
   };
 
-  const handleSubmitFinal = async () => {
+  const handleSubmitFinal = async (overrideViolations?: number) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+
+    const recordedViolations = overrideViolations !== undefined ? overrideViolations : violationCount;
 
     // Calculate score for PG
     let correctCount = 0;
@@ -112,7 +204,11 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
       nilaiAkhir: nilaiPG, // temporary score until graded
       status: 'Menunggu Penilaian',
       submittedAt: new Date().toISOString(),
-      durasiPengerjaanDetik: Math.max(1, durasiPengerjaan)
+      durasiPengerjaanDetik: Math.max(1, durasiPengerjaan),
+      pelanggaranPindahTab: recordedViolations,
+      catatanGuru: recordedViolations >= MAX_ALLOWED_VIOLATIONS 
+        ? `[DISKRIPSI CBT] Dikumpulkan otomatis karena mencapai batas maksimal ${recordedViolations}x pindah tab!`
+        : (recordedViolations > 0 ? `[PERINGATAN CBT] Siswa terdeteksi ${recordedViolations}x pindah tab selama ujian.` : undefined)
     };
 
     try {
@@ -126,6 +222,7 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
     } finally {
       setIsSubmitting(false);
       setShowConfirmModal(false);
+      setShowTabWarningModal(false);
     }
   };
 
@@ -148,7 +245,23 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Anti-Cheat CBT Status Badge */}
+            <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+              violationCount === 0
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                : violationCount === 1
+                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 animate-pulse'
+            }`}>
+              {violationCount === 0 ? (
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-bounce" />
+              )}
+              <span>Pindah Tab: <b className="font-mono">{violationCount}</b>/{MAX_ALLOWED_VIOLATIONS}</span>
+            </div>
+
             {/* Timer */}
             <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-mono text-sm font-bold border shadow-xs ${
               timeLeft < 300
@@ -434,13 +547,68 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
                 Periksa Kembali
               </button>
               <button
-                onClick={handleSubmitFinal}
+                onClick={() => handleSubmitFinal()}
                 disabled={isSubmitting}
                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
               >
                 {isSubmitting ? 'Mengirim ke Server...' : 'Ya, Kumpulkan Sekarang'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CBT TAB SWITCHING WARNING MODAL (ANTI-CHEAT) */}
+      {showTabWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border-2 border-rose-500 dark:border-rose-600 text-center relative overflow-hidden">
+            {/* Top Warning Strip */}
+            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-500 via-rose-500 to-red-600 animate-pulse"></div>
+
+            <div className="w-16 h-16 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center mb-4 shadow-inner">
+              <AlertTriangle className="w-9 h-9 animate-bounce" />
+            </div>
+
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 uppercase tracking-wider mb-2">
+              🚨 Peringatan Integritas CBT
+            </span>
+
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2">
+              Dilarang Berpindah Tab / Jendela!
+            </h3>
+
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-800 text-slate-800 dark:text-slate-200 text-sm mb-5 leading-relaxed text-left">
+              <div className="font-bold text-rose-700 dark:text-rose-400 flex items-center gap-2 mb-1.5">
+                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span>Pelanggaran Terdeteksi: Ke-{violationCount} dari Maksimal {MAX_ALLOWED_VIOLATIONS} Kali</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Anda terdeteksi meninggalkan halaman kuis ujian (membuka tab baru, jendela peramban lain, atau meminimalkan aplikasi). Setiap tindakan ini dicatat ke dalam database dan dilaporkan ke Guru Pengawas.
+              </p>
+            </div>
+
+            {violationCount >= MAX_ALLOWED_VIOLATIONS ? (
+              <div className="p-3.5 bg-red-600 text-white rounded-xl text-xs font-bold mb-4 animate-pulse">
+                🚨 Batas toleransi telah habis ({MAX_ALLOWED_VIOLATIONS}/{MAX_ALLOWED_VIOLATIONS} kali)! Lembar jawaban Anda sedang otomatis dikumpulkan oleh sistem.
+              </div>
+            ) : (
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mb-6">
+                Sisa kesempatan: <b>{MAX_ALLOWED_VIOLATIONS - violationCount} kali</b> lagi sebelum ujian didiskualifikasi dan dikumpulkan paksa.
+              </p>
+            )}
+
+            {violationCount < MAX_ALLOWED_VIOLATIONS ? (
+              <button
+                onClick={() => setShowTabWarningModal(false)}
+                className="w-full py-3.5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-sm font-bold shadow-lg transition flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" /> Saya Mengerti &amp; Lanjutkan Ujian
+              </button>
+            ) : (
+              <div className="text-xs text-slate-500 dark:text-slate-400 font-mono animate-pulse">
+                Mengirim lembar jawaban ke server guru...
+              </div>
+            )}
           </div>
         </div>
       )}

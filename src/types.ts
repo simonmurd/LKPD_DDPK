@@ -75,11 +75,12 @@ export interface JawabanSiswa {
   dinilaiPada?: string;
   submittedAt: string;
   durasiPengerjaanDetik?: number;
+  pelanggaranPindahTab?: number; // Jumlah berapa kali siswa terdeteksi ganti tab / minimize
 }
 
 export interface LogAktivitas {
   id?: string;
-  tipe: 'login' | 'ujian_mulai' | 'ujian_selesai' | 'penilaian_guru' | 'kelas_tambah' | 'kelas_hapus' | 'soal_update' | 'backup';
+  tipe: 'login' | 'ujian_mulai' | 'ujian_selesai' | 'penilaian_guru' | 'kelas_tambah' | 'kelas_hapus' | 'soal_update' | 'backup' | 'ujian_pelanggaran_tab';
   deskripsi: string;
   pelaku: string;
   role: 'siswa' | 'guru';

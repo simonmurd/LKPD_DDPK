@@ -86,6 +86,12 @@ export const StudentGradeHistory: React.FC<Props> = ({ user, submissions }) => {
                         {sub.nilaiEssay !== null ? `${sub.nilaiEssay} / 100` : <span className="text-amber-600 font-sans">Belum Dinilai</span>}
                       </span>
                     </div>
+                    {sub.pelanggaranPindahTab && sub.pelanggaranPindahTab > 0 ? (
+                      <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold text-[11px]">
+                        <span>Peringatan Pindah Tab:</span>
+                        <span>{sub.pelanggaranPindahTab}x Terdeteksi</span>
+                      </div>
+                    ) : null}
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                       <span className="font-bold text-slate-700 dark:text-slate-300">Nilai Akhir:</span>
                       <div className="flex items-center gap-1.5">
