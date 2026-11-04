@@ -1,0 +1,6 @@
+{
+  "name": "E-Learning Komputer & Jaringan Dasar",
+  "description": "Aplikasi E-Learning interaktif mata pelajaran Komputer dan Jaringan Dasar SMK dengan materi, simulasi lab interaktif, evaluasi PG & Essay, dashboard admin guru, dan integrasi Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
