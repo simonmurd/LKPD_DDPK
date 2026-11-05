@@ -40,27 +40,36 @@ export const AcademicCalendar: React.FC = () => {
 
   // Direct Google Calendar Web URL
   const handleAddToGoogleCalendar = (item: KalenderAkademik) => {
-    const startIso = item.tanggal.replace(/-/g, '') + 'T010000Z';
-    const endIso = item.tanggal.replace(/-/g, '') + 'T030000Z';
-    const title = encodeURIComponent(item.judul);
-    const details = encodeURIComponent(`${item.deskripsi}\nWaktu: ${item.waktu}\nPlatform: E-Learning KJD SMK`);
-    const location = encodeURIComponent('Lab Komputer SMK');
-    const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startIso}/${endIso}&details=${details}&location=${location}`;
-    window.open(gCalUrl, '_blank', 'noopener,noreferrer');
+    try {
+      const startIso = item.tanggal.replace(/-/g, '') + 'T010000Z';
+      const endIso = item.tanggal.replace(/-/g, '') + 'T030000Z';
+      const title = encodeURIComponent(item.judul);
+      const details = encodeURIComponent(`${item.deskripsi}\nWaktu: ${item.waktu}\nPlatform: E-Learning KJD SMK`);
+      const location = encodeURIComponent('Lab Komputer SMK');
+      const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startIso}/${endIso}&details=${details}&location=${location}`;
+      window.open(gCalUrl, '_blank', 'noopener,noreferrer');
+      setNotifStatus(`📅 Membuka Google Calendar untuk menambahkan: "${item.judul}".`);
+    } catch {
+      handleDownloadICS(item);
+    }
   };
 
   // Push notification alert trigger
   const handleTestPushNotification = async (item: KalenderAkademik) => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        new Notification(`🔔 Pengingat Ujian KJD: ${item.judul}`, {
-          body: `Jadwal: ${item.tanggal} (${item.waktu}). Persiapkan materi dan modul Anda!`,
-          icon: '/favicon.ico'
-        });
-        setNotifStatus(`🔔 Notifikasi push browser berhasil dikirim untuk jadwal "${item.judul}"!`);
-        return;
+    try {
+      if ('Notification' in window && typeof Notification.requestPermission === 'function') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          new Notification(`🔔 Pengingat Ujian KJD: ${item.judul}`, {
+            body: `Jadwal: ${item.tanggal} (${item.waktu}). Persiapkan materi dan modul Anda!`,
+            icon: '/favicon.ico'
+          });
+          setNotifStatus(`🔔 Notifikasi push browser berhasil dikirim untuk jadwal "${item.judul}"!`);
+          return;
+        }
       }
+    } catch {
+      // In-app fallback toast below
     }
 
     // In-app fallback toast

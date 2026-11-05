@@ -19,6 +19,8 @@ import {
   Network
 } from 'lucide-react';
 
+import { DEFAULT_MODUL } from '../data/defaultData';
+
 interface Props {
   modulList: Modul[];
   user: UserSession;
@@ -26,10 +28,11 @@ interface Props {
 }
 
 export const ModuleView: React.FC<Props> = ({ modulList, user, onStartEvaluation }) => {
-  const [selectedModulId, setSelectedModulId] = useState<string>(modulList[0]?.id || 'modul-1');
+  const safeModulList = modulList && modulList.length > 0 ? modulList : DEFAULT_MODUL;
+  const [selectedModulId, setSelectedModulId] = useState<string>(safeModulList[0]?.id || 'modul-1');
   const [activeTab, setActiveTab] = useState<'materi' | 'simulasi' | 'web-resmi'>('materi');
 
-  const selectedModul = modulList.find(m => m.id === selectedModulId) || modulList[0];
+  const selectedModul = safeModulList.find(m => m.id === selectedModulId) || safeModulList[0] || DEFAULT_MODUL[0];
 
   const renderSimulation = () => {
     switch (selectedModul.simulasiTipe) {
@@ -248,8 +251,13 @@ export const ModuleView: React.FC<Props> = ({ modulList, user, onStartEvaluation
           ) : (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex flex-wrap items-center justify-between gap-4">
-                <div className="text-xs text-blue-900 dark:text-blue-200">
-                  Sumber materi resmi dari modul kurikulum: <b className="font-mono">https://simonmurd.github.io/Komputer-dan-Jaringan-Dasar/</b>
+                <div>
+                  <div className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                    Modul Kurikulum Resmi: <span className="font-mono font-normal">https://simonmurd.github.io/Komputer-dan-Jaringan-Dasar/</span>
+                  </div>
+                  <p className="text-[11px] text-blue-700/80 dark:text-blue-300/80 mt-0.5">
+                    Jika tampilan frame di bawah tidak muncul karena kebijakan keamanan browser, silakan klik tombol di samping.
+                  </p>
                 </div>
                 <a
                   href={selectedModul.materiUrl}

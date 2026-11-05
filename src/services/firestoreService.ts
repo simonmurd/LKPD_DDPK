@@ -185,13 +185,31 @@ export async function deleteKelas(id: string, namaKelas: string): Promise<void> 
    MODUL & BANK SOAL SERVICES
    ========================================================================= */
 
+function sanitizeModul(data: Partial<Modul>, id: string): Modul {
+  const defaultMod = DEFAULT_MODUL.find(dm => dm.id === id || dm.kode === data.kode) || DEFAULT_MODUL[0];
+  return {
+    ...defaultMod,
+    ...data,
+    id: id || defaultMod.id,
+    kode: data.kode || defaultMod.kode,
+    judul: data.judul || defaultMod.judul,
+    soalPG: (data.soalPG && data.soalPG.length >= 40) ? data.soalPG : defaultMod.soalPG,
+    soalEssay: (data.soalEssay && data.soalEssay.length >= 10) ? data.soalEssay : defaultMod.soalEssay,
+    ringkasan: (data.ringkasan && data.ringkasan.length > 0) ? data.ringkasan : defaultMod.ringkasan,
+    materiUrl: data.materiUrl || defaultMod.materiUrl,
+    simulasiTipe: data.simulasiTipe || defaultMod.simulasiTipe
+  };
+}
+
 export async function fetchModulList(): Promise<Modul[]> {
   try {
     const colRef = collection(db, 'modul');
     const snapshot = await getDocs(colRef);
     if (!snapshot.empty) {
       const list: Modul[] = [];
-      snapshot.forEach((d) => list.push({ id: d.id, ...d.data() } as Modul));
+      snapshot.forEach((d) => {
+        list.push(sanitizeModul(d.data() as Partial<Modul>, d.id));
+      });
       list.sort((a, b) => a.kode.localeCompare(b.kode));
       localStorage.setItem(STORAGE_KEYS.MODUL, JSON.stringify(list));
       return list;
@@ -218,7 +236,9 @@ export function subscribeModul(callback: (modulList: Modul[]) => void): () => vo
       (snapshot) => {
         if (!snapshot.empty) {
           const list: Modul[] = [];
-          snapshot.forEach((d) => list.push({ id: d.id, ...d.data() } as Modul));
+          snapshot.forEach((d) => {
+            list.push(sanitizeModul(d.data() as Partial<Modul>, d.id));
+          });
           list.sort((a, b) => a.kode.localeCompare(b.kode));
           localStorage.setItem(STORAGE_KEYS.MODUL, JSON.stringify(list));
           callback(list);

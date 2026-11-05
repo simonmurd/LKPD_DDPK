@@ -133,16 +133,19 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const totalEssay = modul.soalEssay?.length || 10;
-  const totalQuestions = modul.soalPG.length + totalEssay; // 40 + 10 = 50
+  const soalPGList = modul.soalPG || [];
+  const soalEssayList = modul.soalEssay || [];
+
+  const totalEssay = soalEssayList.length || 10;
+  const totalQuestions = soalPGList.length + totalEssay; // 40 + 10 = 50
   const answeredEssayCount = Object.values(essayAnswers).filter(a => a && a.trim().length > 0).length;
   const answeredCount = Object.keys(selectedAnswers).length + answeredEssayCount;
 
-  const isCurrentEssay = currentIdx >= modul.soalPG.length;
-  const currentPGQuestion = !isCurrentEssay ? modul.soalPG[currentIdx] : null;
+  const isCurrentEssay = currentIdx >= soalPGList.length;
+  const currentPGQuestion = !isCurrentEssay ? soalPGList[currentIdx] : null;
 
-  const currentEssayIdx = isCurrentEssay ? currentIdx - modul.soalPG.length : 0;
-  const currentEssayQuestion = isCurrentEssay ? (modul.soalEssay[currentEssayIdx] || {
+  const currentEssayIdx = isCurrentEssay ? currentIdx - soalPGList.length : 0;
+  const currentEssayQuestion = isCurrentEssay ? (soalEssayList[currentEssayIdx] || {
     id: currentEssayIdx + 1,
     pertanyaan: `Soal Essay ${currentEssayIdx + 1}`,
     skorMaksimal: 10
@@ -438,9 +441,9 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
               </div>
 
               {/* 40 PG Question Buttons */}
-              <div className="text-xs font-semibold text-slate-400 mb-2">Pilihan Ganda (40 Soal):</div>
+              <div className="text-xs font-semibold text-slate-400 mb-2">Pilihan Ganda ({soalPGList.length} Soal):</div>
               <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 mb-4">
-                {modul.soalPG.map((soal, idx) => {
+                {soalPGList.map((soal, idx) => {
                   const isAnswered = Boolean(selectedAnswers[soal.id]);
                   const isFlag = Boolean(flagged[idx]);
                   const isCurrent = currentIdx === idx;
@@ -469,15 +472,15 @@ export const EvaluationExam: React.FC<Props> = ({ modul, user, onFinish, onCance
               {/* 10 Essay Buttons */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-slate-400">Soal Uraian / Essay (10 Soal):</span>
+                  <span className="text-xs font-semibold text-slate-400">Soal Uraian / Essay ({soalEssayList.length} Soal):</span>
                   <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 font-mono">
                     {answeredEssayCount} / {totalEssay} Terisi
                   </span>
                 </div>
 
                 <div className="grid grid-cols-5 gap-2">
-                  {modul.soalEssay.map((essay, eIdx) => {
-                    const globalIdx = modul.soalPG.length + eIdx;
+                  {soalEssayList.map((essay, eIdx) => {
+                    const globalIdx = soalPGList.length + eIdx;
                     const isAnswered = Boolean(essayAnswers[essay.id] && essayAnswers[essay.id].trim().length > 0);
                     const isFlag = Boolean(flagged[globalIdx]);
                     const isCurrent = currentIdx === globalIdx;

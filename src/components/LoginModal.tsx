@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Kelas, UserSession, SiswaRoster } from '../types';
-import { DEFAULT_SISWA } from '../data/defaultData';
+import { DEFAULT_SISWA, DEFAULT_KELAS } from '../data/defaultData';
 import { logAktivitas } from '../services/firestoreService';
 import { 
   GraduationCap, 
   User, 
   Building2, 
   Shield, 
-  ArrowRight,
-  CheckCircle2
+  ArrowRight, 
+  CheckCircle2 
 } from 'lucide-react';
 
 interface Props {
@@ -20,16 +20,17 @@ interface Props {
 export const LoginModal: React.FC<Props> = ({ kelasList, onLoginSiswa, onOpenAdminLogin }) => {
   // Only use the classes that exist in DEFAULT_SISWA
   const validClasses = useMemo(() => {
-    return kelasList.filter(k => 
+    const matched = kelasList.filter(k => 
       DEFAULT_SISWA.some(s => s.kelas.toLowerCase() === k.nama.toLowerCase())
     );
+    return matched.length > 0 ? matched : DEFAULT_KELAS;
   }, [kelasList]);
 
   const [selectedKelasId, setSelectedKelasId] = useState<string>(
     validClasses[0]?.id || 'k-smkn1-x-tjk'
   );
 
-  const activeKelas = validClasses.find(k => k.id === selectedKelasId) || validClasses[0];
+  const activeKelas = validClasses.find(k => k.id === selectedKelasId) || validClasses[0] || DEFAULT_KELAS[0];
 
   // Get only the exact students belonging to this chosen class from the user's data
   const classStudents = useMemo(() => {
